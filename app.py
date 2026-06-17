@@ -34,6 +34,48 @@ def health():
 def metrics():
     return jsonify({"requetes_total": _metriques["requetes"]})
 
+# --- Votre domaine : Route Créditer ---------------------------------------
+
+@app.route("/crediter", methods=["POST"])
+@require_role("admin")  
+def crediter_compte():
+    """
+    Crédite le compte d'un joueur (Réservé Admin).
+    Attend un JSON : { "pseudo": "NomDuJoueur", "montant": 100 }
+    """
+    donnees = request.get_json(silent=True)
+    
+    if not donnees or "pseudo" not in donnees or "montant" not in donnees:
+        return jsonify({"erreur": "Données manquantes (pseudo et montant requis)"}), 400
+    
+    pseudo = donnees["pseudo"]
+    montant = donnees["montant"]
+    
+    if not isinstance(montant, int) or montant <= 0:
+        return jsonify({"erreur": "Le montant doit être un entier strictement positif"}), 400
+
+    with db.Session() as session:
+        compte = session.get(db.Compte, pseudo)
+        
+        if not compte:
+            # Si le pseudo n'existe pas, on crée le compte avec le crédit initial
+            compte = db.Compte(pseudo=pseudo, solde=montant)
+            session.add(compte)
+            code_statut = 201  # 201 Created pour une création
+        else:
+            # Sinon, on ajoute le montant au solde existant
+            compte.solde += montant
+            code_statut = 200  # 200 OK pour une mise à jour
+        
+        # Validation et enregistrement dans la base de données
+        session.commit()
+        
+        return jsonify({
+            "pseudo": compte.pseudo,
+            "nouveau_solde": compte.solde,
+            "message": "Compte crédité avec succès"
+        }), code_statut
+
 
 # --- Votre domaine : À ÉCRIRE ---------------------------------------------
 # Ajoutez ici les routes de VOTRE service (cf. 2-contrats.md). Rappels :
@@ -47,3 +89,5 @@ def metrics():
 if __name__ == "__main__":
     # 0.0.0.0 : indispensable en conteneur. Port interne uniforme : 5000.
     app.run(host="0.0.0.0", port=5000)
+
+

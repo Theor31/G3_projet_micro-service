@@ -24,6 +24,9 @@ from flask import request, jsonify
 # émis par service-comptes sont rejetés ailleurs). Fixé dans docker-compose.yml.
 SECRET = os.environ.get("JWT_SECRET", "je-suis-le-secret-tres-secret-12")
 
+def creer_token(sujet, roles=["joueur"]):
+    """Fabrique un jeton pour un appelant (utilisateur ou service) + ses roles."""
+    return jwt.encode({"pseudo": sujet, "roles": roles}, SECRET, algorithm="HS256")
 
 def require_jwt(f):
     """Décorateur : refuse la requête (401) si le jeton est absent ou invalide ;

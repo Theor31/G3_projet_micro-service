@@ -10,8 +10,8 @@ Ce fichier ne donne QUE la charpente : à vous d'écrire les routes de votre dom
 from flask import Flask, request, jsonify
 
 import db
-from auth import require_jwt, require_role  # à compléter dans auth.py ; protège vos écritures
-  
+from auth import require_jwt, require_role
+
 app = Flask(__name__)
 db.init()
 
@@ -34,56 +34,59 @@ def health():
 def metrics():
     return jsonify({"requetes_total": _metriques["requetes"]})
 
+# --- Votre domaine : Route Créditer ---------------------------------------
 
-# --- Votre domaine : À ÉCRIRE ---------------------------------------------
-# Ajoutez ici les routes de VOTRE service (cf. 2-contrats.md). Rappels :
-#   - lectures ouvertes, écritures protégées (@require_jwt / @require_role) ;
-#   - après require_jwt, l'identité de l'appelant est dans request.joueur
-#     (request.joueur["pseudo"], request.joueur["roles"]) ;
-#   - une session de base par requête : `with db.Session() as s: ...` ;
-#   - renvoyez du JSON et le bon code (201 créé, 400 mal formé, 404, 409...).
-
-@app.route("/debiter", methods=["POST"])
-@require_jwt
-def debiter():
-    data = request.get_json()
-    if not data or "pseudo" not in data or "montant" not in data:
-        return jsonify({"erreur": "JSON invalide. 'pseudo' et 'montant' requis"}), 400
-        
-    pseudo = data["pseudo"]
+@app.route("/crediter", methods=["POST"])
+@require_role("admin")  
+def crediter_compte():
+    """
+    Crédite le compte d'un joueur (Réservé Admin).
+    Attend un JSON : { "pseudo": "NomDuJoueur", "montant": 100 }
+    """
+    donnees = request.get_json(silent=True)
     
-    # On s'assure qu'un joueur ne débite pas le compte de quelqu'un d'autre
-    if request.joueur["pseudo"] != pseudo and "admin" not in request.joueur.get("roles", []):
-        return jsonify({"erreur": "Accès refusé pour ce pseudo"}), 403
+    if not donnees or "pseudo" not in donnees or "montant" not in donnees:
+        return jsonify({"erreur": "Données manquantes (pseudo et montant requis)"}), 400
+    
+    pseudo = donnees["pseudo"]
+    montant = donnees["montant"]
+    
+    if not isinstance(montant, int) or montant <= 0:
+        return jsonify({"erreur": "Le montant doit être un entier strictement positif"}), 400
 
-    try:
-        montant = int(data["montant"])
-    except ValueError:
-        return jsonify({"erreur": "Le montant doit être un entier"}), 400
+    with db.Session() as session:
+        compte = session.get(db.Compte, pseudo)
         
-    if montant < 0:
-        return jsonify({"erreur": "Le montant doit être positif ou nul"}), 400
-
-    with db.Session() as s:
-        compte = s.query(db.Compte).filter_by(pseudo=pseudo).first()
-        
-        # Si le compte n'existe pas, on considère qu'il a 0 pièce
         if not compte:
-            return jsonify({"erreur": "Solde insuffisant (compte inexistant)"}), 409
-            
-        if compte.solde < montant:
-            return jsonify({"erreur": "Solde insuffisant"}), 409
-            
-        compte.solde -= montant
-        s.commit()
+            # Si le pseudo n'existe pas, on crée le compte avec le crédit initial
+            compte = db.Compte(pseudo=pseudo, solde=montant)
+            session.add(compte)
+            code_statut = 201  # 201 Created pour une création
+        else:
+            # Sinon, on ajoute le montant au solde existant
+            compte.solde += montant
+            code_statut = 200  # 200 OK pour une mise à jour
+        
+        # Validation et enregistrement dans la base de données
+        session.commit()
         
         return jsonify({
-            "message": "Débit réussi",
             "pseudo": compte.pseudo,
-            "nouveau_solde": compte.solde
-        }), 200
+            "nouveau_solde": compte.solde,
+            "message": "Compte crédité avec succès"
+        }), code_statut
 
+
+@app.route("/solde/<pseudo>")
+def get_solde(pseudo):
+    session = db.Session()
+    compte = session.get(db.Compte, pseudo)
+    session.close()
+    if compte is None:
+        return jsonify({"erreur": "Pseudo introuvable"}), 404
+    return jsonify({"pseudo": pseudo, "solde": compte.solde})
 
 if __name__ == "__main__":
-    # 0.0.0.0 : indispensable en conteneur. Port interne uniforme : 5000.
     app.run(host="0.0.0.0", port=5000)
+
+

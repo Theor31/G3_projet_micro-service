@@ -27,14 +27,14 @@ def _compter():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "service": "service-economie"})  # mettez votre nom
+    return jsonify({"status": "ok", "service": "service-economie"})
 
 
 @app.route("/metrics")
 def metrics():
     return jsonify({"requetes_total": _metriques["requetes"]})
 
-# --- Votre domaine : Route Créditer ---------------------------------------
+# ------------------------- Route Créditer ---------------------------------
 
 @app.route("/crediter", methods=["POST"])
 #@require_role("admin")
@@ -76,6 +76,7 @@ def crediter_compte():
             "message": "Compte crédité avec succès"
         }), code_statut
 
+# ------------------------- Route get_solde ---------------------------------
 
 @app.route("/solde/<pseudo>")
 def get_solde(pseudo):
@@ -86,7 +87,49 @@ def get_solde(pseudo):
         return jsonify({"erreur": "Pseudo introuvable"}), 404
     return jsonify({"pseudo": pseudo, "solde": compte.solde})
 
+# ------------------------- Route Débiter ---------------------------------
+
+@app.route("/debiter", methods=["POST"])
+@require_jwt
+def debiter():
+    data = request.get_json()
+    if not data or "pseudo" not in data or "montant" not in data:
+        return jsonify({"erreur": "JSON invalide. 'pseudo' et 'montant' requis"}), 400
+        
+    pseudo = data["pseudo"]
+    
+    # On s'assure qu'un joueur ne débite pas le compte de quelqu'un d'autre
+    if request.joueur["pseudo"] != pseudo and "admin" not in request.joueur.get("roles", []):
+        return jsonify({"erreur": "Accès refusé pour ce pseudo"}), 403
+
+    try:
+        montant = int(data["montant"])
+    except ValueError:
+        return jsonify({"erreur": "Le montant doit être un entier"}), 400
+        
+    if montant < 0:
+        return jsonify({"erreur": "Le montant doit être positif ou nul"}), 400
+
+    with db.Session() as s:
+        compte = s.query(db.Compte).filter_by(pseudo=pseudo).first()
+        
+        # Si le compte n'existe pas, on considère qu'il a 0 pièce
+        if not compte:
+            return jsonify({"erreur": "Solde insuffisant (compte inexistant)"}), 409
+            
+        if compte.solde < montant:
+            return jsonify({"erreur": "Solde insuffisant"}), 409
+            
+        compte.solde -= montant
+        s.commit()
+        
+        return jsonify({
+            "pseudo": compte.pseudo,
+            "nouveau_solde": compte.solde,
+            "message": "Débit réussi"
+        }), 200
+    
+    
 if __name__ == "__main__":
+    # 0.0.0.0 : indispensable en conteneur. Port interne uniforme : 5000.
     app.run(host="0.0.0.0", port=5000)
-
-

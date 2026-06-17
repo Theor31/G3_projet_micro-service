@@ -10,8 +10,8 @@ Ce fichier ne donne QUE la charpente : à vous d'écrire les routes de votre dom
 from flask import Flask, request, jsonify
 
 import db
-from auth import require_jwt, require_role  # à compléter dans auth.py ; protège vos écritures
-  
+from auth import require_jwt, require_role
+
 app = Flask(__name__)
 db.init()
 
@@ -77,17 +77,16 @@ def crediter_compte():
         }), code_statut
 
 
-# --- Votre domaine : À ÉCRIRE ---------------------------------------------
-# Ajoutez ici les routes de VOTRE service (cf. 2-contrats.md). Rappels :
-#   - lectures ouvertes, écritures protégées (@require_jwt / @require_role) ;
-#   - après require_jwt, l'identité de l'appelant est dans request.joueur
-#     (request.joueur["pseudo"], request.joueur["roles"]) ;
-#   - une session de base par requête : `with db.Session() as s: ...` ;
-#   - renvoyez du JSON et le bon code (201 créé, 400 mal formé, 404, 409...).
-
+@app.route("/solde/<pseudo>")
+def get_solde(pseudo):
+    session = db.Session()
+    compte = session.get(db.Compte, pseudo)
+    session.close()
+    if compte is None:
+        return jsonify({"erreur": "Pseudo introuvable"}), 404
+    return jsonify({"pseudo": pseudo, "solde": compte.solde})
 
 if __name__ == "__main__":
-    # 0.0.0.0 : indispensable en conteneur. Port interne uniforme : 5000.
     app.run(host="0.0.0.0", port=5000)
 
 

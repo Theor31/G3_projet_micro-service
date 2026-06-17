@@ -35,7 +35,7 @@ def metrics():
     return jsonify({"requetes_total": _metriques["requetes"]})
 
 
-@app.route("/solde/<pseudo>")
+@app.route("/solde/<pseudo>", methods=["GET"])
 def get_solde(pseudo):
     session = db.Session()
     compte = session.get(db.Compte, pseudo)

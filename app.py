@@ -11,7 +11,7 @@ from flask import Flask, request, jsonify
 
 import db
 from auth import require_jwt, require_role  # à compléter dans auth.py ; protège vos écritures
-
+  
 app = Flask(__name__)
 db.init()
 

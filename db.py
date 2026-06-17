@@ -11,8 +11,8 @@ docker-compose.yml). Vous avez découvert ce pattern au TP 12.
 """
 import os
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy import create_engine, Column, CheckConstraint, String, Integer
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 DB_PATH = os.environ.get("DB_PATH", "data.db")
 
@@ -26,17 +26,15 @@ Session = sessionmaker(bind=engine)
 class Base(DeclarativeBase):
     """Classe de base commune à tous vos modèles."""
 
+class Compte(Base):
+    __tablename__ = 'comptes'
 
-# --- Vos modèles : À ÉCRIRE -----------------------------------------------
-# Une table = une classe, une colonne = un attribut. Squelette type :
-#
-#   class Truc(Base):
-#       __tablename__ = "trucs"
-#       id: Mapped[int] = mapped_column(primary_key=True)
-#       nom: Mapped[str]
-#
-# Définissez ici les tables de VOTRE domaine (comptes, objets, scores...).
+    pseudo = Column(String, primary_key=True)
+    solde = Column(Integer, default=0, nullable=False)
 
+    __table_args__ = (
+        CheckConstraint('solde >= 0', name='check_solde_positif'),
+    )
 
 def init():
     """Crée les tables si elles n'existent pas. À APPELER au démarrage."""

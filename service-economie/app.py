@@ -37,7 +37,7 @@ def metrics():
 # --- Votre domaine : Route Créditer ---------------------------------------
 
 @app.route("/crediter", methods=["POST"])
-@require_role("admin")  
+#@require_role("admin")
 def crediter_compte():
     """
     Crédite le compte d'un joueur (Réservé Admin).

@@ -1,0 +1,14 @@
+x-jwt: &jwt_secret
+  JWT_SECRET: "je-suis-le-secret-tres-secret-12"
+services:
+  service-economie:
+    build: ./service-economie
+    environment:
+      <<: *jwt_secret
+      DB_PATH: /data/economie.db
+    ports:
+      - "5003:5000"
+    volumes:
+      - economie-data:/data
+volumes:
+  economie-data:

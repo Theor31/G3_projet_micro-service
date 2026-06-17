@@ -1,12 +1,3 @@
-"""Squelette minimal d'un micro-service Voxenfer (à copier et adapter).
-
-Auteur : Philippe ROUSSILLE <roussille@3il.fr>
-
-Vous avez tout vu aux TP 08 à 12 : Flask + routes REST/JSON avec les bons codes,
-JWT (auth.py), /health et /metrics, une base propre au service via un ORM (db.py).
-Ce fichier ne donne QUE la charpente : à vous d'écrire les routes de votre domaine
-(voir 2-contrats.md pour celles qu'on attend de votre service).
-"""
 from flask import Flask, request, jsonify
 
 import db
@@ -23,7 +14,7 @@ def _compter():
     _metriques["requetes"] += 1
 
 
-# --- Observabilité (à garder tel quel) ------------------------------------
+# --- Observabilité ------------------------------------
 
 @app.route("/health")
 def health():
@@ -58,16 +49,13 @@ def crediter_compte():
         compte = session.get(db.Compte, pseudo)
         
         if not compte:
-            # Si le pseudo n'existe pas, on crée le compte avec le crédit initial
             compte = db.Compte(pseudo=pseudo, solde=montant)
             session.add(compte)
             code_statut = 201  # 201 Created pour une création
         else:
-            # Sinon, on ajoute le montant au solde existant
             compte.solde += montant
             code_statut = 200  # 200 OK pour une mise à jour
         
-        # Validation et enregistrement dans la base de données
         session.commit()
         
         return jsonify({

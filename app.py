@@ -87,9 +87,6 @@ def get_solde(pseudo):
         return jsonify({"erreur": "Pseudo introuvable"}), 404
     return jsonify({"pseudo": pseudo, "solde": compte.solde})
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
-
 # ------------------------- Route Débiter ---------------------------------
 
 @app.route("/debiter", methods=["POST"])
@@ -127,9 +124,9 @@ def debiter():
         s.commit()
         
         return jsonify({
-            "message": "Débit réussi",
             "pseudo": compte.pseudo,
-            "nouveau_solde": compte.solde
+            "nouveau_solde": compte.solde,
+            "message": "Débit réussi"
         }), 200
     
     
